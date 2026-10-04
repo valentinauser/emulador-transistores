@@ -4,8 +4,21 @@ Primitivas (con transistores directos): NOT, NAND, NOR.
 Compuestas (con otras compuertas): AND, OR, XOR, XNOR.
 Cada compuerta guarda sus transistores para poder mostrar la tabla
 "qué transistor corresponde a qué compuerta".
+
+En CMOS cada primitiva tiene dos redes:
+  - pull-up   (PMOS): si conduce, la salida se conecta a Vdd  -> 1
+  - pull-down (NMOS): si conduce, la salida se conecta a tierra -> 0
+Siempre debe conducir UNA sola de las dos (ver _salida).
 """
 from .transistor import Transistor
+
+
+def _salida(sube, baja):
+    """Resuelve la salida a partir de las dos redes.
+    Si conducen las dos hay cortocircuito; si no conduce ninguna, la salida
+    queda flotando. Ambos casos indican un error de diseño."""
+    assert sube != baja, "cortocircuito o salida flotante: revisar conexiones"
+    return 1 if sube else 0
 
 
 class Compuerta:
@@ -26,7 +39,7 @@ class Compuerta:
 
 
 class NOT(Compuerta):
-    nombre = "NOT"
+    nombre = "NOT"  # 2 transistores
 
     def __init__(self):
         super().__init__()
@@ -35,12 +48,13 @@ class NOT(Compuerta):
         self.transistores = [self.p, self.n]
 
     def evaluar(self, a):
-        # Si el PMOS conduce, la salida se une a Vdd (1); si no, a tierra (0)
-        return 1 if self.p.conduce(a) else 0
+        sube = self.p.conduce(a)
+        baja = self.n.conduce(a)
+        return _salida(sube, baja)
 
 
 class NAND(Compuerta):
-    nombre = "NAND"
+    nombre = "NAND"  # 4 transistores
 
     def __init__(self):
         super().__init__()
@@ -50,12 +64,17 @@ class NAND(Compuerta):
         self.transistores = [self.p1, self.p2, self.n1, self.n2]
 
     def evaluar(self, a, b):
-        sube = self.p1.conduce(a) or self.p2.conduce(b)
-        return 1 if sube else 0
+        # Se evalúan los 4 primero (sin cortocircuitar 'or'/'and')
+        # para que todos actualicen su estado 'activo'
+        p1, p2 = self.p1.conduce(a), self.p2.conduce(b)
+        n1, n2 = self.n1.conduce(a), self.n2.conduce(b)
+        sube = p1 or p2    # paralelo: basta uno
+        baja = n1 and n2   # serie: deben conducir ambos
+        return _salida(sube, baja)
 
 
 class NOR(Compuerta):
-    nombre = "NOR"
+    nombre = "NOR"  # 4 transistores
 
     def __init__(self):
         super().__init__()
@@ -65,8 +84,11 @@ class NOR(Compuerta):
         self.transistores = [self.p1, self.p2, self.n1, self.n2]
 
     def evaluar(self, a, b):
-        sube = self.p1.conduce(a) and self.p2.conduce(b)
-        return 1 if sube else 0
+        p1, p2 = self.p1.conduce(a), self.p2.conduce(b)
+        n1, n2 = self.n1.conduce(a), self.n2.conduce(b)
+        sube = p1 and p2   # serie: deben conducir ambos
+        baja = n1 or n2    # paralelo: basta uno
+        return _salida(sube, baja)
 
 
 class AND(Compuerta):
@@ -107,7 +129,7 @@ class XOR(Compuerta):
 
 
 class XNOR(Compuerta):
-    nombre = "XNOR"  # XOR + NOT
+    nombre = "XNOR"  # XOR + NOT = 16 + 2 = 18 transistores
 
     def __init__(self):
         super().__init__()
@@ -118,10 +140,12 @@ class XNOR(Compuerta):
         return self.inv.evaluar(self.xor.evaluar(a, b))
 
 
-def tabla_transistor_compuerta(compuerta):
-    """Devuelve filas (compuerta, id transistor, tipo, etiqueta) para mostrar
-    en la presentación/interfaz. TODO(Persona 2): agrupar por sub-compuerta."""
-    filas = []
-    for t in compuerta.todos_los_transistores():
-        filas.append((compuerta.nombre, t.id, t.tipo, t.etiqueta))
+def tabla_transistor_compuerta(compuerta, ruta=None):
+    """Devuelve filas (ruta, id transistor, tipo, etiqueta) para mostrar
+    en la presentación/interfaz, agrupadas por sub-compuerta.
+    Ejemplo de ruta: 'XOR/NAND2' o 'AND/NOT2'."""
+    ruta = ruta or compuerta.nombre
+    filas = [(ruta, t.id, t.tipo, t.etiqueta) for t in compuerta.transistores]
+    for i, parte in enumerate(compuerta.partes, 1):
+        filas += tabla_transistor_compuerta(parte, f"{ruta}/{parte.nombre}{i}")
     return filas
