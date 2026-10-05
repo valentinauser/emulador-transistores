@@ -1,5 +1,4 @@
-"""PERSONA 2 - Capa 2: compuertas CMOS hechas solo con transistores.
-
+"""
 Primitivas (con transistores directos): NOT, NAND, NOR.
 Compuestas (con otras compuertas): AND, OR, XOR, XNOR.
 Cada compuerta guarda sus transistores para poder mostrar la tabla
