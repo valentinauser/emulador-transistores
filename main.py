@@ -1,6 +1,12 @@
-"""PERSONA 5 - Punto de entrada / demo. Aquí se integra todo (luego la UI)."""
+"""PERSONA 5 - Punto de entrada.
+
+    python main.py          -> abre la interfaz gráfica
+    python main.py --demo   -> demo corta en consola (sin ventana)
+"""
+import sys
+
 from emulador.transistor import Transistor
-from emulador.gates import NAND, XOR, tabla_transistor_compuerta
+from emulador.gates import XOR, tabla_transistor_compuerta
 from emulador.adders import SumadorN
 from emulador.utils import entero_a_bits, bits_a_entero, bits_a_texto
 
@@ -18,5 +24,18 @@ def demo():
     print("Transistores emulados:", Transistor.total)
 
 
+def main():
+    if "--demo" in sys.argv:
+        demo()
+        return
+    try:
+        from ui import iniciar
+    except ImportError as e:  # normalmente: Tkinter no instalado
+        print("No se pudo abrir la interfaz:", e)
+        print("Prueba 'python -m tkinter'. Mientras tanto: python main.py --demo")
+        return
+    iniciar()
+
+
 if __name__ == "__main__":
-    demo()
+    main()
